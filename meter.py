@@ -414,6 +414,7 @@ _EN_REPLACEMENTS = {
     "DATEN EXPORTIEREN": "EXPORT DATA",
     "ZAEHLER VERWALTEN": "MANAGE METERS",
     "Einzelmessung": "Single reading",
+    "Messung #": "Reading #",
     "Alte Werte anzeigen": "Show previous readings",
     "Kompakte Ansicht": "Compact view",
     "Verbrauch": "Consumption",
@@ -494,6 +495,7 @@ _EN_REPLACEMENTS = {
     "Messzeitpunkt:": "Reading time:",
     "Zaehlernummer:": "Meter number:",
     "Zaehler:": "Meter:",
+    "Zähler:": "Meter:",
     "Messung:": "Reading:",
     "Protokoll:": "Protocol:",
     "Datensaetze gespeichert": "records saved",
@@ -614,6 +616,55 @@ _EN_REPLACEMENTS = {
     "Falls eine neue Version installiert wurde, TermuMeter bitte neu starten.": "If a new version was installed, please restart TermuMeter.",
     "Update-Skript wurde mit Exit-Code": "Update script exited with code",
     "beendet.": ".",
+
+    # Remaining user-visible analysis / reading strings
+    "EINZELMESSUNG": "SINGLE READING",
+    "VERBRAUCH": "CONSUMPTION",
+    "TARIFAUFTEILUNG": "TARIFF BREAKDOWN",
+    "EINSPEISUNG": "EXPORT",
+    "MESSINTERVALLE": "READING INTERVALS",
+    "MONATSVERBRAUCH - DETAILS": "MONTHLY CONSUMPTION - DETAILS",
+    "MONATSVERBRAUCH": "MONTHLY CONSUMPTION",
+    "Zeitraumwahl:": "Period selection:",
+    "Zeitraum:": "Period:",
+    "Tatsaechlich von:": "Actual period from:",
+    "bis:": "to:",
+    "Auswertbare Werte:": "Usable readings:",
+    "Zeitraumlaenge:": "Period length:",
+    "Zaehlerstand Start": "Meter reading start",
+    "Zaehlerstand Ende": "Meter reading end",
+    "Durchschnitt/Tag": "Average/day",
+    "Nicht genug auswertbare Werte im gewaehlten Zeitraum.": "Not enough usable readings in the selected period.",
+    "Verbrauch kann nicht berechnet werden.": "Consumption cannot be calculated.",
+    "Hinweis: Angezeigt wird der tatsaechlich durch Messwerte": "Note: The displayed period is the period actually covered by readings",
+    "abgedeckte Zeitraum innerhalb der Zeitraumwahl.": "within the selected period.",
+    "Keine auswertbaren Monatsvorwerte vorhanden.": "No usable historical monthly values available.",
+    "Benoetigt werden mindestens zwei gueltige Stichtage mit 1.8.0.": "At least two valid reference dates with 1.8.0 are required.",
+    "Quelle:": "Source:",
+    "Monat": "Month",
+    "Monatsnummer fuer Details": "Month number for details",
+    "Gesamtverbrauch": "Total consumption",
+
+    # Output of the native USB readers is passed through print() as well.
+    "FTDI verbunden": "FTDI connected",
+    "300 ms vor Baudratenquittierung": "300 ms before baud-rate acknowledgement",
+    "Baudratenquittierung": "baud-rate acknowledgement",
+    " Baud / 7E1": " baud / 7E1",
+    "300 ms vor baud-rate acknowledgement": "300 ms before baud-rate acknowledgement",
+    "[FEHLER] Keine vollstaendige Identifikation empfangen": "[ERROR] No complete identification received",
+    "gesendet": "sent",
+    "Zaehler:": "Meter:",
+    "TX EMPTY nach": "TX EMPTY after",
+    "STX erkannt": "STX detected",
+    "Vollstaendiger IEC-Block": "Complete IEC block",
+    "Rohdaten ausgegeben": "Raw data output",
+    "Passiver Empfang fuer 2.5 Sekunden": "Passive reception for 2.5 seconds",
+    "Passiver Empfang fuer": "Passive reception for",
+    "Empfang beendet:": "Reception ended:",
+    "Bytes": "bytes",
+    "Hex-Ausgabe:": "Hex output:",
+    "Zeichen": "characters",
+    "Erwartet wurde ein SML-Telegramm, empfangen:": "Expected one SML telegram, received:",
 }
 
 
@@ -1161,12 +1212,19 @@ def parse_sml_hex_output(raw):
         raise RuntimeError("Ungueltige Hex-Ausgabe des SML-Readers") from exc
 
     frames = parse_sml_bytes(binary)
-    if len(frames) != 1:
-        raise RuntimeError(
-            f"Erwartet wurde ein SML-Telegramm, empfangen: {len(frames)}"
-        )
+    if not frames:
+        raise RuntimeError("Kein vollstaendiges SML-Telegramm erkannt")
 
-    frame, values = frames[0]
+    # SML-Zaehler senden zyklisch. Innerhalb des Empfangsfensters koennen daher
+    # mehrere vollstaendige Telegramme sowie angeschnittene Randdaten anfallen.
+    # Bevorzugt wird der letzte CRC-gueltige Frame; falls keiner CRC-gueltig ist,
+    # bleibt der letzte geparste Frame sichtbar und wird spaeter als ungueltig
+    # behandelt statt faelschlich als "kein SML" auf IEC zurueckzufallen.
+    valid_frames = [
+        item for item in frames
+        if bool(getattr(item[0], "crc_valid", False))
+    ]
+    frame, values = (valid_frames or frames)[-1]
     uid = sml_meter_id(values)
 
     return LiveMessage(
@@ -1209,10 +1267,18 @@ def run_sml_reader(device, quiet_timeout=False):
         raise RuntimeError(
             f"SML-Reader fehlgeschlagen (Exit-Code {result.returncode})"
         )
-    if not result.stdout:
+    if not result.stdout or not result.stdout.strip():
         return None
 
-    return parse_sml_hex_output(result.stdout)
+    try:
+        return parse_sml_hex_output(result.stdout)
+    except (RuntimeError, ValueError):
+        # In automatic mode, an empty/malformed/non-SML payload is not fatal:
+        # it means SML was not positively detected, so continue with IEC.
+        # In explicit SML-only mode the parse error remains visible.
+        if quiet_timeout:
+            return None
+        raise
 
 def read_live_message():
     device = choose_usb_device()

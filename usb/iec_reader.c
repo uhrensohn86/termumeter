@@ -183,7 +183,7 @@ int main(int argc, char **argv)
         goto fail;
     }
 
-    fprintf(stderr, "[5] ACK0%c0 gesendet\n", baud_char);
+    fprintf(stderr, "[6] ACK0%c0 gesendet\n", baud_char);
 
     /*
      * Bewaehrtes Timing unveraendert:
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
         goto fail;
     }
 
-    fprintf(stderr, "[6] TX EMPTY nach %ld ms\n", temt_time);
+    fprintf(stderr, "[7] TX EMPTY nach %ld ms\n", temt_time);
 
     /*
      * Nach vollstaendig gesendetem ACK kurze Umschaltpause.
@@ -235,7 +235,7 @@ int main(int argc, char **argv)
         goto fail;
     }
 
-    fprintf(stderr, "[7] %d Baud / 7E1\n", negotiated_baud);
+    fprintf(stderr, "[8] %d Baud / 7E1\n", negotiated_baud);
 
     int have_stx = 0;
     int text_mode = 0;
@@ -264,7 +264,7 @@ int main(int argc, char **argv)
                 if (ch == IEC_STX) {
                     have_stx = 1;
                     prefix_pos = 0;
-                    fprintf(stderr, "[8] STX erkannt\n");
+                    fprintf(stderr, "[9] STX erkannt\n");
                 } else if (ch == '\r' || ch == '\n') {
                     /*
                      * EFR beginnt den STX-losen Textblock mit CR/LF.
@@ -326,7 +326,7 @@ int main(int argc, char **argv)
         goto fail;
     }
 
-    fprintf(stderr, "[9] Vollstaendiger IEC-Block: %zu Bytes\n", block_pos);
+    fprintf(stderr, "[10] Vollstaendiger IEC-Block: %zu Bytes\n", block_pos);
 
     size_t written = fwrite(block, 1, block_pos, stdout);
     fflush(stdout);
@@ -336,7 +336,7 @@ int main(int argc, char **argv)
         goto fail;
     }
 
-    fprintf(stderr, "[10] Rohdaten ausgegeben\n");
+    fprintf(stderr, "[11] Rohdaten ausgegeben\n");
 
     ftdi_close(&t);
     return 0;
