@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import argparse
+import builtins
 import csv
 import shutil
 import json
@@ -50,7 +51,7 @@ IEC_READER = BASE_DIR / "usb" / "iec_reader"
 SML_READER = BASE_DIR / "usb" / "sml_reader"
 CONFIG_FILE = BASE_DIR / "data" / "settings.json"
 VERSION_FILE = BASE_DIR / "VERSION"
-DEFAULT_SETTINGS = {"protocol_mode": "auto"}
+DEFAULT_SETTINGS = {"protocol_mode": "auto", "language": "en"}
 
 
 def _load_app_version():
@@ -385,6 +386,8 @@ def load_settings():
 
     if settings.get("protocol_mode") not in ("auto", "sml", "iec"):
         settings["protocol_mode"] = "auto"
+    if settings.get("language") not in ("en", "de"):
+        settings["language"] = "en"
     return settings
 
 
@@ -396,6 +399,246 @@ def save_settings(settings):
         encoding="utf-8",
     )
     tmp.replace(CONFIG_FILE)
+
+
+_ORIGINAL_PRINT = builtins.print
+_ORIGINAL_INPUT = builtins.input
+
+# English is the public/default UI language. The existing German source strings
+# remain the canonical fallback so the reader/protocol logic is untouched.
+_EN_REPLACEMENTS = {
+    "Automatisch (SML -> IEC)": "Automatic (SML -> IEC)",
+    "NEUE ZAEHLERAUSLESUNG": "NEW METER READING",
+    "LETZTE AUSLESUNG": "LAST READING",
+    "AUSWERTUNG": "ANALYSIS",
+    "DATEN EXPORTIEREN": "EXPORT DATA",
+    "ZAEHLER VERWALTEN": "MANAGE METERS",
+    "Einzelmessung": "Single reading",
+    "Alte Werte anzeigen": "Show previous readings",
+    "Kompakte Ansicht": "Compact view",
+    "Verbrauch": "Consumption",
+    "Tarifaufteilung": "Tariff breakdown",
+    "Messintervalle": "Reading intervals",
+    "Monatsverbrauch": "Monthly consumption",
+    "Uebersicht": "Summary",
+    "Alle Messwerte": "All readings",
+    "Alle Werte anzeigen": "Show all values",
+    "MESSREIHE": "MEASUREMENT SERIES",
+    "MESSREIHE BEENDET": "MEASUREMENT SERIES COMPLETED",
+    "MESSREIHE ABGEBROCHEN": "MEASUREMENT SERIES ABORTED",
+    "MESSREIHE STARTEN": "START MEASUREMENT SERIES",
+    "MESSREIHEN": "MEASUREMENT SERIES",
+    "Sekunden": "Seconds",
+    "Minuten": "Minutes",
+    "Stunden": "Hours",
+    "Sekunde": "Second",
+    "Minute": "Minute",
+    "Stunde": "Hour",
+    "AUSLESUNGSVERLAUF": "READING HISTORY",
+    "Zaehler auswaehlen": "Select meter",
+    "Zaehler-ID": "Meter ID",
+    "Zaehl.-Nr.": "Meter no.",
+    "Nur IEC 62056-21": "IEC 62056-21 only",
+    "Nur SML": "SML only",
+    "EINSTELLUNGEN": "SETTINGS",
+    "Protokollerkennung": "Protocol detection",
+    "Aktuell:": "Current:",
+    "Diagnose / Supportbericht": "Diagnostics / support report",
+    "Nach Updates suchen": "Check for updates",
+    "Sprache": "Language",
+    "Zurueck": "Back",
+    "Beenden": "Exit",
+    "Auswahl:": "Selection:",
+    "Neue Zaehlerauslesung": "New meter reading",
+    "Letzte Auslesung": "Last reading",
+    "Auslesungsverlauf": "Reading history",
+    "Auswertung": "Analysis",
+    "Daten exportieren": "Export data",
+    "Zaehler verwalten": "Manage meters",
+    "Einstellungen": "Settings",
+    "Bekannte Zaehler anzeigen": "Show known meters",
+    "Zaehler umbenennen": "Rename meter",
+    "Zaehlernummer / Identitaet": "Meter number / identity",
+    "Auslesungen verwalten": "Manage readings",
+    "Zaehler loeschen": "Delete meter",
+    "HA-Zaehler auswaehlen": "Select Home Assistant meter",
+    "HA-ZAEHLER AUSWAEHLEN": "SELECT HOME ASSISTANT METER",
+    "Synchronisation wird spaeter eingerichtet.": "Synchronization will be added later.",
+    "Den HA-Zaehler kannst du bereits unter": "You can already select the Home Assistant meter under",
+    '"Zaehler verwalten" auswaehlen.': '"Manage meters".',
+    "TermuMeter beendet.": "TermuMeter exited.",
+    "Fehler:": "Error:",
+    "Enter zum Fortfahren ...": "Press Enter to continue ...",
+    "Protokoll erkannt:": "Protocol detected:",
+    "Kein SML erkannt - versuche IEC 62056-21 ...": "No SML detected - trying IEC 62056-21 ...",
+    "USB-Geraet:": "USB device:",
+    "Starte IEC-Auslesung ...": "Starting IEC reading ...",
+    "Pruefe passiv auf SML ...": "Checking passively for SML ...",
+    "Kein USB-Geraet gefunden": "No USB device found",
+    "Mehrere USB-Geraete vorhanden": "Multiple USB devices detected",
+    "FTDI-Auswahl wird spaeter ergaenzt.": "FTDI device selection will be added later.",
+    "termux-usb wurde nicht gefunden": "termux-usb was not found",
+    "Ungueltige Ausgabe von termux-usb -l": "Invalid output from termux-usb -l",
+    "unbekannter Fehler": "unknown error",
+    "Keine Daten vom Zaehler empfangen": "No data received from meter",
+    "Reader fehlgeschlagen": "Reader failed",
+    "nicht gefunden": "not found",
+    "Neue Live-Auslesung starten": "Start new live reading",
+    "Gespeichertes Telegramm auswerten": "Parse saved telegram",
+    "Alle OBIS-Datensaetze anzeigen": "Show all OBIS records",
+    "Letzte gespeicherte Auslesung anzeigen": "Show last saved reading",
+    "Gespeicherte Zaehler-ID auswaehlen": "Select saved meter ID",
+    "Zaehler fuer Home Assistant waehlen": "Select meter for Home Assistant",
+    "Auslesung erfolgreich": "Reading successful",
+    "Gespeicherte Auslesung": "Saved reading",
+    "Messzeitpunkt:": "Reading time:",
+    "Zaehlernummer:": "Meter number:",
+    "Zaehler:": "Meter:",
+    "Messung:": "Reading:",
+    "Protokoll:": "Protocol:",
+    "Datensaetze gespeichert": "records saved",
+    "Datensaetze:": "Records:",
+    "Gesamtbezug": "Total import",
+    "Einspeisung": "Export",
+    "Leistung": "Power",
+    "Spannung L1": "Voltage L1",
+    "Spannung L2": "Voltage L2",
+    "Spannung L3": "Voltage L3",
+    "Tarif 1": "Tariff 1", "Tarif 2": "Tariff 2", "Tarif 3": "Tariff 3", "Tarif 4": "Tariff 4",
+    "Monatsvorwerte": "Historical monthly values",
+    "Datum": "Date", "Gesamt": "Total",
+    "Keine gespeicherte Auslesung gefunden": "No saved reading found",
+    "Keine Auslesungen gespeichert.": "No readings saved.",
+    "Bekannte Zaehler": "Known meters",
+    "Noch keine Zaehler gespeichert.": "No meters saved yet.",
+    "Auslesungen:": "Readings:",
+    "Letzte:": "Last:",
+    "Fabriknr.:": "Factory no.:",
+    "Techn. ID:": "Technical ID:",
+    "Aktueller Name:": "Current name:",
+    "Neuer Name:": "New name:",
+    "Name nicht geaendert.": "Name not changed.",
+    "Name gespeichert.": "Name saved.",
+    "Ungueltige ID.": "Invalid ID.",
+    "Ungueltige Zaehler-ID": "Invalid meter ID",
+    "Zaehler nicht gefunden": "Meter not found",
+    "Technische ID:": "Technical ID:",
+    "Fabriknummer:": "Factory number:",
+    "Fabriknummer bevorzugen": "Prefer factory number",
+    "EVU-/Eigentumsnummer eingeben und bevorzugen": "Enter and prefer utility/asset number",
+    "Technische ID bevorzugen": "Prefer technical ID",
+    "Abbrechen": "Cancel",
+    "Keine Fabriknummer gespeichert.": "No factory number saved.",
+    "Keine Nummer eingegeben.": "No number entered.",
+    "Identitaetsanzeige gespeichert.": "Identity display setting saved.",
+    "ID des HA-Zaehler:": "Home Assistant meter ID:",
+    "HA-Zaehler gespeichert.": "Home Assistant meter saved.",
+    "Neuer Zaehler erkannt": "New meter detected",
+    "Erkannt ueber:": "Detected via:",
+    "Stimmt die Fabriknummer mit dem Typenschild ueberein?": "Does the factory number match the nameplate?",
+    "Welche Nummer soll in der Anwendung bevorzugt angezeigt werden?": "Which number should be preferred in the application?",
+    "EVU-/Eigentumsnummer vom Typenschild eingeben": "Enter utility/asset number from nameplate",
+    "EVU-/Eigentumsnummer:": "Utility/asset number:",
+    "Name fuer diesen Zaehler (optional):": "Name for this meter (optional):",
+    "Gespeichert als:": "Saved as:",
+    "Keine eindeutige Zaehler-ID automatisch erkannt": "No unique meter ID detected automatically",
+    "Das Telegramm wurde gelesen, kann aber keinem Zaehler eindeutig": "The telegram was read but cannot be uniquely assigned to a meter",
+    "zugeordnet werden. Rohdaten werden dabei nicht veraendert.": "The raw data will not be modified.",
+    "Bestehendem Zaehler manuell zuordnen": "Assign manually to an existing meter",
+    "Neuen Zaehler mit Nummer vom Typenschild anlegen": "Create new meter using nameplate number",
+    "Auslesung nicht speichern": "Do not save reading",
+    "Nummer vom Typenschild:": "Nameplate number:",
+    "Welche Art von Nummer wurde eingegeben?": "What type of number was entered?",
+    "Fabrik-/Seriennummer": "Factory/serial number",
+    "EVU-/Eigentumsnummer": "Utility/asset number",
+    "Auslesung ohne Zaehlerzuordnung abgebrochen": "Reading cancelled without meter assignment",
+    "Keine eindeutige Zaehlerkennung gefunden": "No unique meter identifier found",
+    "Keine eindeutige SML-Zaehlerkennung gefunden": "No unique SML meter identifier found",
+    "Keine SML-Zaehlerkennung gefunden": "No SML meter identifier found",
+    "Keine IEC-Zaehlerkennung gefunden": "No IEC meter identifier found",
+    "Auslesung wirklich": "Really assign reading",
+    "Bestehende Auslesungen bleiben erhalten.": "Existing readings are retained.",
+    "Auslesung wird nicht automatisch umgedeutet.": "The reading will not be reinterpreted automatically.",
+    "Bitte Diagnosebericht erstellen und die Typenschildangabe pruefen.": "Please create a diagnostic report and verify the nameplate information.",
+    "Auslesungen von:": "Readings for:",
+    "Gesamter Verlauf": "Complete history",
+    "Zeitraum waehlen": "Select period",
+    "Einzelne Auslesungen": "Individual readings",
+    "Anderen Zaehler waehlen": "Choose another meter",
+    "Keine Auslesungen fuer diesen Zaehler gespeichert.": "No readings saved for this meter.",
+    "Messungs-ID:": "Reading ID:",
+    "Auslesung wurde nicht gefunden.": "Reading not found.",
+    "Diese Messung gehoert nicht zum ausgewaehlten Zaehler.": "This reading does not belong to the selected meter.",
+    "Einzelne Auslesung loeschen": "Delete individual reading",
+    "Alle Auslesungen dieses Zaehlers loeschen": "Delete all readings for this meter",
+    "Auslesung geloescht.": "Reading deleted.",
+    "Auslesung(en) geloescht.": "reading(s) deleted.",
+    "Auslesungen dieses Zaehlers loeschen?": "Delete this meter's readings?",
+    "wirklich loeschen?": "really delete?",
+    "Zaehler loeschen": "Delete meter",
+    "Home Assistant: Dieser Zaehler ist aktuell als HA-Quelle markiert.": "Home Assistant: this meter is currently selected as the HA source.",
+    "Auswertung": "Analysis",
+    "Keine auswertbare 1.8.0-Auslesung vorhanden.": "No usable 1.8.0 reading available.",
+    "Zaehlerstand ist gesunken; keine Differenz berechnet.": "Meter reading decreased; no difference calculated.",
+    "Moeglicher Zaehlerwechsel oder Zaehler-Reset.": "Possible meter replacement or meter reset.",
+    "Zaehlerstand Start": "Meter reading start",
+    "Zaehlerstand Ende": "Meter reading end",
+    "Verbrauch:": "Consumption:",
+    "Daten exportieren": "Export data",
+    "Gesamter Verlauf": "Complete history",
+    "Zeitraum waehlen": "Select period",
+    "Gespeichert:": "Saved:",
+    "Messreihe": "Measurement series",
+    "Messreihen": "Measurement series",
+    "Keine Messreihen gespeichert.": "No measurement series saved.",
+    "Anzahl Messungen (mind. 2):": "Number of readings (min. 2):",
+    "Intervall": "Interval",
+    "Naechste Messung in": "Next reading in",
+    "Fehler bei Messung": "Error during reading",
+    "Ungueltige Anzahl.": "Invalid number.",
+    "Ungueltiges Intervall.": "Invalid interval.",
+    "Ungueltige Auswahl.": "Invalid selection.",
+    "Ungueltiges Datum. Erwartet wird TT.MM.JJJJ.": "Invalid date. Expected format: DD.MM.YYYY.",
+    "Diagnose abgeschlossen.": "Diagnostics completed.",
+    "Ergebnis:": "Result:",
+    "Bericht:": "Report:",
+    "Die Diagnose speichert keine Messung in der Datenbank.": "Diagnostics do not save a reading to the database.",
+    "Es werden keine Rohtelegramme gespeichert.": "No raw telegrams are stored.",
+    "Zaehler-IDs werden pseudonymisiert; Messwerte werden nicht exportiert.": "Meter IDs are pseudonymized; measurement values are not exported.",
+    "USB-Seriennummer und Smartphone-Modell werden nicht in den Bericht aufgenommen.": "USB serial number and smartphone model are not included in the report.",
+    "Diagnose starten": "Start diagnostics",
+    "TermuMeter-Update wird gestartet ...": "Starting TermuMeter update ...",
+    "Update-Skript nicht gefunden.": "Update script not found.",
+    "Update konnte nicht gestartet werden:": "Update could not be started:",
+    "Update-Pruefung abgeschlossen.": "Update check completed.",
+    "Falls eine neue Version installiert wurde, TermuMeter bitte neu starten.": "If a new version was installed, please restart TermuMeter.",
+    "Update-Skript wurde mit Exit-Code": "Update script exited with code",
+    "beendet.": ".",
+}
+
+
+def _ui_language():
+    try:
+        return load_settings().get("language", "en")
+    except Exception:
+        return "en"
+
+
+def _translate_ui(value):
+    if _ui_language() != "en" or not isinstance(value, str):
+        return value
+    result = value
+    for source, target in sorted(_EN_REPLACEMENTS.items(), key=lambda item: len(item[0]), reverse=True):
+        result = result.replace(source, target)
+    return result
+
+
+def print(*args, **kwargs):
+    _ORIGINAL_PRINT(*(_translate_ui(arg) for arg in args), **kwargs)
+
+
+def input(prompt=""):
+    return _ORIGINAL_INPUT(_translate_ui(prompt))
 
 
 def protocol_mode_label(mode):
@@ -3265,6 +3508,33 @@ def menu_meters():
         elif choice == "0":
             return
 
+
+def menu_language():
+    while True:
+        settings = load_settings()
+        current = settings.get("language", "en")
+        screen_title("SPRACHE")
+        # These labels are intentionally bilingual so language selection remains
+        # understandable even if the current language was selected accidentally.
+        _ORIGINAL_PRINT(f"Current / Aktuell: {'English' if current == 'en' else 'Deutsch'}\n")
+        _ORIGINAL_PRINT("1  English")
+        _ORIGINAL_PRINT("2  Deutsch")
+        _ORIGINAL_PRINT("0  Back / Zurueck\n")
+        try:
+            choice = _ORIGINAL_INPUT("Selection / Auswahl: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if choice == "1":
+            settings["language"] = "en"
+            save_settings(settings)
+            return
+        if choice == "2":
+            settings["language"] = "de"
+            save_settings(settings)
+            return
+        if choice == "0":
+            return
+
 def menu_settings():
     while True:
         settings = load_settings()
@@ -3278,6 +3548,8 @@ def menu_settings():
         print("2  Nur SML")
         print("3  Nur IEC 62056-21")
         print("4  Diagnose / Supportbericht")
+        print("5  Sprache")
+        print("6  Nach Updates suchen")
         print("0  Zurueck\n")
 
         try:
@@ -3291,6 +3563,33 @@ def menu_settings():
             save_settings(settings)
         elif choice == "4":
             create_diagnostic_report()
+            pause()
+        elif choice == "5":
+            menu_language()
+        elif choice == "6":
+            update_script = BASE_DIR / "update.sh"
+            if not update_script.is_file():
+                print("\nUpdate-Skript nicht gefunden.")
+                pause()
+                continue
+
+            print("\nTermuMeter-Update wird gestartet ...\n")
+            try:
+                result = subprocess.run([str(update_script)], check=False)
+            except OSError as exc:
+                print(f"\nUpdate konnte nicht gestartet werden: {exc}")
+            else:
+                if result.returncode == 0:
+                    print(
+                        "\nUpdate-Pruefung abgeschlossen. "
+                        "Falls eine neue Version installiert wurde, "
+                        "TermuMeter bitte neu starten."
+                    )
+                else:
+                    print(
+                        f"\nUpdate-Skript wurde mit Exit-Code "
+                        f"{result.returncode} beendet."
+                    )
             pause()
         elif choice == "0":
             return
