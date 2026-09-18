@@ -1,0 +1,24 @@
+# Laufzeitdaten / persoenliche Daten
+data/*.db
+data/*.db-*
+data/settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Lokal kompilierte Reader
+usb/iec_reader
+usb/sml_reader
+usb/usb_info
+
+# Entwicklungs-Backups
+*.before-*
+*.stable-*
+*.bak
+
+# Diagnose- und Logdateien
+*.log
+meter-reader-diagnostic-*
+
+termumeter-diagnostic-*
