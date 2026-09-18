@@ -3301,6 +3301,7 @@ def main_menu():
         clear_screen()
         print("======================================")
         print("              TERMUMETER")
+        print(f"           {APP_VERSION}")
         print("======================================\n")
         print("1  Neue Zaehlerauslesung")
         print("2  Letzte Auslesung")
