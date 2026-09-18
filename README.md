@@ -2,6 +2,12 @@
 
 **IEC 62056-21 & SML electricity meter reader for Android/Termux**
 
+<p align="center">
+  <img src="docs/images/termumeter-hero.png"
+       alt="TermuMeter reading an electricity meter via an optical USB reader"
+       width="700">
+</p>
+
 TermuMeter reads compatible electricity meters directly on an Android device using
 Termux, USB OTG and an optical infrared read head. It supports automatic protocol
 detection, local storage of readings, history and analysis functions, CSV export,
