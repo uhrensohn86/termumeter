@@ -162,7 +162,9 @@ included.
 
 TermuMeter can passively receive SML telegrams at 9600 baud / 8N1 and validates
 the SML frame CRC. The SML parser preserves protocol metadata and applies SML
-scalers using decimal arithmetic.
+scalers using decimal arithmetic. Printable ASCII values in observed `96.50.1`
+fields are additionally shown in decoded form while the original hexadecimal
+value remains unchanged.
 
 Meter identification supports the standard `96.1.0` path and the observed
 `0.0.9` fallback used by some tested meters.
@@ -177,7 +179,7 @@ development.
 | ZPA | ZE311 | Yes | — | Tested |
 | ABB | A1500 | Yes | — | Tested |
 | ZPA | GS303 | Yes | Yes | Both protocols tested |
-| EFR | SGM-DD | Yes | Yes | Both protocols tested; observed IEC variant supported |
+| EFR | SGM-DD | Yes | Yes | Both protocols tested; three-phase meter; observed IEC variant supported |
 | EMH | eBZ D-W2E8 | — | Yes | Tested |
 | Sagemcom | SMARTY BZ-PLUS family* | Yes | Yes | Reduced and extended data observed |
 | Iskraemeco | MT173 | Yes | — | Tested |
@@ -187,6 +189,11 @@ development.
 | Iskraemeco | MT371 | Yes | — | Tested; factory-number identity handling |
 | Iskraemeco | MT174 | Yes | — | Tested |
 | DZG | DWSB20.2H | — | Yes | Tested |
+| EMH | mMe4.0 | — | Yes | Tested |
+| ZPA | ZE111 | Yes | — | Tested |
+| Iskraemeco | ME172 | Yes | — | Tested |
+| DZG | WS7412.2.G2 | — | Yes | Tested |
+| EFR | SGM-C6 | — | Yes | Tested; single-phase meter |
 
 \* The exact Sagemcom model designation of the tested unit has not been
 independently confirmed; the family assignment is therefore intentionally

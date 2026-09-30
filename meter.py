@@ -143,6 +143,51 @@ def format_stored_value(entry):
     return str(raw) if raw is not None else "-"
 
 
+def _sml_hex_ascii_annotation(code, raw):
+    """Decode selected SML manufacturer/version fields for display only.
+
+    The stored/raw value is never changed. 96.50.1 is used by observed
+    SML meters for printable manufacturer/hardware information. Only clean,
+    printable ASCII is annotated; binary values and identifiers remain raw.
+    """
+    if raw is None or not code:
+        return None
+    try:
+        normalized = re.sub(r"^\d+-\d+:", "", str(code).strip())
+    except Exception:
+        return None
+    if re.fullmatch(r"96\.50\.1(?:\*\d+)?", normalized) is None:
+        return None
+
+    text = str(raw).strip()
+    if len(text) < 2 or len(text) % 2 or re.fullmatch(r"[0-9A-Fa-f]+", text) is None:
+        return None
+    try:
+        decoded = bytes.fromhex(text).decode("ascii")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not decoded or any(ord(ch) < 32 or ord(ch) > 126 for ch in decoded):
+        return None
+    return decoded
+
+
+def format_detail_value(entry, code=None):
+    """Normal value formatting plus a safe display-only SML ASCII hint."""
+    if isinstance(entry, dict):
+        text = format_stored_value(entry)
+        raw = entry.get("raw")
+        entry_code = code or entry.get("base_code")
+    else:
+        text = format_value(entry)
+        raw = getattr(entry, "raw", None)
+        entry_code = code or getattr(entry, "code", None)
+
+    decoded = _sml_hex_ascii_annotation(entry_code, raw)
+    if decoded is not None and decoded != str(raw):
+        return f"{text} ({decoded})"
+    return text
+
+
 def get_stored_entries(values, base_code):
     matches = []
     wanted = lookup_obis_code(base_code)
@@ -644,6 +689,65 @@ _EN_REPLACEMENTS = {
     "Monat": "Month",
     "Monatsnummer fuer Details": "Month number for details",
     "Gesamtverbrauch": "Total consumption",
+
+    # beta.4 localization cleanup
+    "AUSLESUNG": "READING",
+    "Detaildaten": "Details",
+    "AUSLESUNGEN VERWALTEN": "MANAGE READINGS",
+    "BEKANNTE ZAEHLER": "KNOWN METERS",
+    "ZAEHLER UMBENENNEN": "RENAME METER",
+    "ZAEHLERNUMMER / IDENTITAET": "METER NUMBER / IDENTITY",
+    "ZAEHLER LOESCHEN": "DELETE METER",
+    "ZEITRAUM": "PERIOD",
+    "Tage": "days",
+    "Letzte 24 Stunden": "Last 24 hours",
+    "Letzte 7 Tage": "Last 7 days",
+    "Letzte 30 Tage": "Last 30 days",
+    "Benutzerdefiniert": "Custom",
+    "Von (TT.MM.JJJJ):": "From (DD.MM.YYYY):",
+    "Bis (TT.MM.JJJJ):": "To (DD.MM.YYYY):",
+    "Das Enddatum liegt vor dem Startdatum.": "The end date is before the start date.",
+    "Bestehender MT371-Eintrag gefunden": "Existing MT371 entry found",
+    "Alter Eintrag bleibt unveraendert.": "Existing entry remains unchanged.",
+    "Die Nummer muss eindeutig vom Typenschild des angeschlossenen": "The number must uniquely identify the connected meter from its nameplate",
+    "Zaehler stammen. Sie dient als manueller technischer Schluessel.": "It is used as the manual technical key.",
+    "Starte Zaehlerauslesung ...": "Starting meter reading ...",
+    "Messpunkte anzeigen": "Show reading points",
+    "CSV exportieren": "Export CSV",
+    "MESSPUNKTE": "READING POINTS",
+    "Mindestens zwei auswertbare Messpunkte mit veraendertem oder": "At least two usable reading points with a changed or",
+    "gleichbleibendem Gesamtzaehlerstand werden benoetigt.": "unchanged total meter reading are required.",
+    "Leistung = Verbrauchsdifferenz / tatsaechliche Zeitdifferenz.": "Power = consumption difference / actual time difference.",
+    "Bei grob aufloesenden Zaehlerstaenden sind kurze Intervalle ungenau.": "Short intervals are inaccurate with coarsely resolved meter readings.",
+    "Fuer die Tarifauswertung werden je Tarif mindestens": "Tariff analysis requires at least",
+    "zwei gueltige Messwerte im Zeitraum benoetigt.": "two valid readings per tariff in the selected period.",
+    "Mindestens zwei gueltige Messpunkte erforderlich.": "At least two valid reading points are required.",
+    "Nicht genug 2.8.0-Werte fuer eine Auswertung.": "Not enough 2.8.0 values for analysis.",
+    "Zaehlerstand gesunken": "meter reading decreased",
+    "Teilen ist auf diesem Termux-System nicht verfuegbar.": "Sharing is not available on this Termux system.",
+    "Die Datei bleibt im Android-Dateispeicher erhalten.": "The file remains in Android storage.",
+    "Teilen konnte nicht gestartet werden:": "Sharing could not be started:",
+    "Android-Teilen konnte nicht gestartet werden.": "Android sharing could not be started.",
+    "Datei teilen": "Share file",
+    "Exportiert:": "Exported:",
+    "Datei:": "File:",
+    "Messungs-ID zum Loeschen:": "Reading ID to delete:",
+    "Nicht geloescht.": "Not deleted.",
+    "ACHTUNG": "WARNING",
+    "unbekannt": "unknown",
+    "beendet": "completed",
+    "abgebrochen": "aborted",
+    "laufend": "running",
+    "Geplant:": "Planned:",
+    "Status:": "Status:",
+    "Intervall:": "Interval:",
+    "Gesamtbezug:": "Total import:",
+    "Dauer:": "Duration:",
+    "Summe Tarife": "Tariff total",
+    "Anteil Tarif 1": "Tariff 1 share",
+    "Anteil Tarif 2": "Tariff 2 share",
+    "Anteile": "Shares",
+    "kein Verbrauch im Zeitraum": "no consumption in the selected period",
 
     # Output of the native USB readers is passed through print() as well.
     "FTDI verbunden": "FTDI connected",
@@ -1631,7 +1735,7 @@ def print_all_live(message):
     print("\nDetaildaten")
     print("===========\n")
     for entry in message.values:
-        print(f"{entry.code:<12} {format_value(entry)}")
+        print(f"{entry.code:<12} {format_detail_value(entry, entry.code)}")
 
 
 def print_stored_reading(reading, show_all=False, show_monthly=False):
@@ -1662,7 +1766,7 @@ def print_stored_reading(reading, show_all=False, show_monthly=False):
         print("\nDetaildaten")
         print("===========\n")
         for code, entry in values.items():
-            print(f"{code:<12} {format_stored_value(entry)}")
+            print(f"{code:<12} {format_detail_value(entry, code)}")
 
 
 def show_last(meter_id=None, show_all=False):
@@ -2601,11 +2705,22 @@ def energy_result(meter_id, code, start, end):
     }
 
 
+def _print_aligned_rows(rows, gap=2):
+    """Print label/value rows aligned using the labels actually shown to the user."""
+    translated = [(_translate_ui(label), _translate_ui(str(value))) for label, value in rows]
+    width = max((len(label) for label, _ in translated), default=0)
+    for label, value in translated:
+        print(f"{label:<{width}}{' ' * gap}{value}")
+
+
 def print_period_header(meter, period):
     label, start, end = period
-    print(f"Zaehler: {meter['name']}")
-    print(f"Zaehl.-Nr.: {meter_display_number(meter)}")
-    print(f"Zeitraumwahl: {label}\n")
+    _print_aligned_rows([
+        ("Zaehler:", meter['name']),
+        ("Zaehl.-Nr.:", meter_display_number(meter)),
+        ("Zeitraumwahl:", label),
+    ])
+    print()
 
 
 def print_analysis_summary(meter, period):
@@ -2626,25 +2741,35 @@ def print_analysis_summary(meter, period):
     delta = result["delta"]
     seconds = (last_time - first_time).total_seconds()
 
-    print(f"Tatsaechlich von:   {format_datetime(first_reading['read_at'])}")
-    print(f"             bis:   {format_datetime(last_reading['read_at'])}")
-    print(f"Auswertbare Werte:  {len(points)}")
-    print(f"Zeitraumlaenge:     {format_duration(seconds)}\n")
-    print(f"Zaehlerstand Start  {format_kwh(first_value)}")
-    print(f"Zaehlerstand Ende   {format_kwh(last_value)}")
+    _print_aligned_rows([
+        ("Tatsaechlich von:", format_datetime(first_reading['read_at'])),
+        ("bis:", format_datetime(last_reading['read_at'])),
+        ("Auswertbare Werte:", len(points)),
+        ("Zeitraumlaenge:", format_duration(seconds)),
+    ])
+    print()
+    _print_aligned_rows([
+        ("Zaehlerstand Start", format_kwh(first_value)),
+        ("Zaehlerstand Ende", format_kwh(last_value)),
+    ])
 
     if delta is None:
         print("\nVerbrauch kann nicht berechnet werden.")
         print("Moeglicher Zaehlerwechsel oder Zaehler-Reset.")
         return
 
-    print(f"Verbrauch           {format_kwh(delta)}")
+    result_rows = [("Verbrauch", format_kwh(delta))]
     if seconds > 0:
         days = Decimal(str(seconds)) / Decimal("86400")
-        print(f"Durchschnitt/Tag    {format_kwh(delta / days)}")
+        result_rows.append(("Durchschnitt/Tag", format_kwh(delta / days)))
+    _print_aligned_rows(result_rows)
 
-    print("\nHinweis: Angezeigt wird der tatsaechlich durch Messwerte")
-    print("abgedeckte Zeitraum innerhalb der Zeitraumwahl.")
+    if _ui_language() == "en":
+        print("\nNote: The displayed period is the period actually covered")
+        print("by readings within the selected period.")
+    else:
+        print("\nHinweis: Angezeigt wird der tatsaechlich durch Messwerte")
+        print("abgedeckte Zeitraum innerhalb der Zeitraumwahl.")
 
 
 def print_analysis_tariffs(meter, period):
