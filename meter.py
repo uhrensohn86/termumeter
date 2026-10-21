@@ -143,51 +143,6 @@ def format_stored_value(entry):
     return str(raw) if raw is not None else "-"
 
 
-def _sml_hex_ascii_annotation(code, raw):
-    """Decode selected SML manufacturer/version fields for display only.
-
-    The stored/raw value is never changed. 96.50.1 is used by observed
-    SML meters for printable manufacturer/hardware information. Only clean,
-    printable ASCII is annotated; binary values and identifiers remain raw.
-    """
-    if raw is None or not code:
-        return None
-    try:
-        normalized = re.sub(r"^\d+-\d+:", "", str(code).strip())
-    except Exception:
-        return None
-    if re.fullmatch(r"96\.50\.1(?:\*\d+)?", normalized) is None:
-        return None
-
-    text = str(raw).strip()
-    if len(text) < 2 or len(text) % 2 or re.fullmatch(r"[0-9A-Fa-f]+", text) is None:
-        return None
-    try:
-        decoded = bytes.fromhex(text).decode("ascii")
-    except (ValueError, UnicodeDecodeError):
-        return None
-    if not decoded or any(ord(ch) < 32 or ord(ch) > 126 for ch in decoded):
-        return None
-    return decoded
-
-
-def format_detail_value(entry, code=None):
-    """Normal value formatting plus a safe display-only SML ASCII hint."""
-    if isinstance(entry, dict):
-        text = format_stored_value(entry)
-        raw = entry.get("raw")
-        entry_code = code or entry.get("base_code")
-    else:
-        text = format_value(entry)
-        raw = getattr(entry, "raw", None)
-        entry_code = code or getattr(entry, "code", None)
-
-    decoded = _sml_hex_ascii_annotation(entry_code, raw)
-    if decoded is not None and decoded != str(raw):
-        return f"{text} ({decoded})"
-    return text
-
-
 def get_stored_entries(values, base_code):
     matches = []
     wanted = lookup_obis_code(base_code)
@@ -484,6 +439,10 @@ _EN_REPLACEMENTS = {
     "Zaehler auswaehlen": "Select meter",
     "Zaehler-ID": "Meter ID",
     "Zaehl.-Nr.": "Meter no.",
+    "Zaehler": "Meter",
+    "Ausgelesen": "Read at",
+    "Vergleich mit": "Compare with",
+    "Zeitraum": "Period",
     "Nur IEC 62056-21": "IEC 62056-21 only",
     "Nur SML": "SML only",
     "EINSTELLUNGEN": "SETTINGS",
@@ -495,6 +454,49 @@ _EN_REPLACEMENTS = {
     "Zurueck": "Back",
     "Beenden": "Exit",
     "Auswahl:": "Selection:",
+    "Auslesen": "Read meter",
+    "Zaehlerstaende & Verbrauch": "Meter readings & consumption",
+    "ZAEHLERSTAENDE & VERBRAUCH": "METER READINGS & CONSUMPTION",
+    "Auslesungen": "Readings",
+    "Monatsvorwerte": "Historical monthly values",
+    "Letzter Zaehlerstand": "Last meter reading",
+    "Ausgelesen:": "Read at:",
+    "Verbrauch seit": "Consumption since",
+    "AUSWERTUNGSZEITRAUM": "ANALYSIS PERIOD",
+    "ERGEBNIS": "RESULT",
+    "DATENBASIS": "DATA BASIS",
+    "Keine Schaetzwerte.": "No estimated values.",
+    "Monatsvorwerte sind gespeicherte Zaehlerstaende.": "Historical monthly values are stored meter readings.",
+    "Monatsvorwert": "Historical monthly value",
+    "Datenbasis:": "Data basis:",
+    "Auslesung(en)": "reading(s)",
+    "Monatsvorwert(e)": "historical monthly value(s)",
+    "Monatsvorwerte werden als gespeicherte Zaehlerstaende": "Historical monthly values are included as stored meter readings",
+    "des Zaehlers einbezogen. Es werden keine Werte geschaetzt.": "from the meter. No values are estimated.",
+    "Zaehlwerke auswaehlen": "Select registers",
+    "Alle auswaehlen": "Select all",
+    "Werte anzeigen": "Show values",
+    "Gesamtbezug": "Total import",
+    "Bezug Tarif 1": "Import tariff 1",
+    "Bezug Tarif 2": "Import tariff 2",
+    "Bezug Tarif 3": "Import tariff 3",
+    "Bezug Tarif 4": "Import tariff 4",
+    "Gesamteinspeisung": "Total export",
+    "Einspeisung Tarif 1": "Export tariff 1",
+    "Einspeisung Tarif 2": "Export tariff 2",
+    "Einspeisung Tarif 3": "Export tariff 3",
+    "Einspeisung Tarif 4": "Export tariff 4",
+    "Keine historischen Energie-Zaehlwerke gefunden.": "No historical energy registers found.",
+    "Technische Details": "Technical details",
+    "Aktueller Stand": "Current reading",
+    "Letzte Auslesung:": "Last reading:",
+    "Noch keine auswertbare Auslesung vorhanden.": "No usable reading available yet.",
+    "Anderen Zaehler waehlen": "Choose another meter",
+    "VERBRAUCH & AUSWERTUNG": "CONSUMPTION & ANALYSIS",
+    "Zeitraum aendern": "Change period",
+    "MONATSVORWERTE": "HISTORICAL MONTHLY VALUES",
+    "Keine Monatsvorwerte in der letzten geeigneten Auslesung gefunden.": "No historical monthly values found in the latest suitable reading.",
+    "Quelle:": "Source:",
     "Neue Zaehlerauslesung": "New meter reading",
     "Letzte Auslesung": "Last reading",
     "Auslesungsverlauf": "Reading history",
@@ -690,65 +692,6 @@ _EN_REPLACEMENTS = {
     "Monatsnummer fuer Details": "Month number for details",
     "Gesamtverbrauch": "Total consumption",
 
-    # beta.4 localization cleanup
-    "AUSLESUNG": "READING",
-    "Detaildaten": "Details",
-    "AUSLESUNGEN VERWALTEN": "MANAGE READINGS",
-    "BEKANNTE ZAEHLER": "KNOWN METERS",
-    "ZAEHLER UMBENENNEN": "RENAME METER",
-    "ZAEHLERNUMMER / IDENTITAET": "METER NUMBER / IDENTITY",
-    "ZAEHLER LOESCHEN": "DELETE METER",
-    "ZEITRAUM": "PERIOD",
-    "Tage": "days",
-    "Letzte 24 Stunden": "Last 24 hours",
-    "Letzte 7 Tage": "Last 7 days",
-    "Letzte 30 Tage": "Last 30 days",
-    "Benutzerdefiniert": "Custom",
-    "Von (TT.MM.JJJJ):": "From (DD.MM.YYYY):",
-    "Bis (TT.MM.JJJJ):": "To (DD.MM.YYYY):",
-    "Das Enddatum liegt vor dem Startdatum.": "The end date is before the start date.",
-    "Bestehender MT371-Eintrag gefunden": "Existing MT371 entry found",
-    "Alter Eintrag bleibt unveraendert.": "Existing entry remains unchanged.",
-    "Die Nummer muss eindeutig vom Typenschild des angeschlossenen": "The number must uniquely identify the connected meter from its nameplate",
-    "Zaehler stammen. Sie dient als manueller technischer Schluessel.": "It is used as the manual technical key.",
-    "Starte Zaehlerauslesung ...": "Starting meter reading ...",
-    "Messpunkte anzeigen": "Show reading points",
-    "CSV exportieren": "Export CSV",
-    "MESSPUNKTE": "READING POINTS",
-    "Mindestens zwei auswertbare Messpunkte mit veraendertem oder": "At least two usable reading points with a changed or",
-    "gleichbleibendem Gesamtzaehlerstand werden benoetigt.": "unchanged total meter reading are required.",
-    "Leistung = Verbrauchsdifferenz / tatsaechliche Zeitdifferenz.": "Power = consumption difference / actual time difference.",
-    "Bei grob aufloesenden Zaehlerstaenden sind kurze Intervalle ungenau.": "Short intervals are inaccurate with coarsely resolved meter readings.",
-    "Fuer die Tarifauswertung werden je Tarif mindestens": "Tariff analysis requires at least",
-    "zwei gueltige Messwerte im Zeitraum benoetigt.": "two valid readings per tariff in the selected period.",
-    "Mindestens zwei gueltige Messpunkte erforderlich.": "At least two valid reading points are required.",
-    "Nicht genug 2.8.0-Werte fuer eine Auswertung.": "Not enough 2.8.0 values for analysis.",
-    "Zaehlerstand gesunken": "meter reading decreased",
-    "Teilen ist auf diesem Termux-System nicht verfuegbar.": "Sharing is not available on this Termux system.",
-    "Die Datei bleibt im Android-Dateispeicher erhalten.": "The file remains in Android storage.",
-    "Teilen konnte nicht gestartet werden:": "Sharing could not be started:",
-    "Android-Teilen konnte nicht gestartet werden.": "Android sharing could not be started.",
-    "Datei teilen": "Share file",
-    "Exportiert:": "Exported:",
-    "Datei:": "File:",
-    "Messungs-ID zum Loeschen:": "Reading ID to delete:",
-    "Nicht geloescht.": "Not deleted.",
-    "ACHTUNG": "WARNING",
-    "unbekannt": "unknown",
-    "beendet": "completed",
-    "abgebrochen": "aborted",
-    "laufend": "running",
-    "Geplant:": "Planned:",
-    "Status:": "Status:",
-    "Intervall:": "Interval:",
-    "Gesamtbezug:": "Total import:",
-    "Dauer:": "Duration:",
-    "Summe Tarife": "Tariff total",
-    "Anteil Tarif 1": "Tariff 1 share",
-    "Anteil Tarif 2": "Tariff 2 share",
-    "Anteile": "Shares",
-    "kein Verbrauch im Zeitraum": "no consumption in the selected period",
-
     # Output of the native USB readers is passed through print() as well.
     "FTDI verbunden": "FTDI connected",
     "300 ms vor Baudratenquittierung": "300 ms before baud-rate acknowledgement",
@@ -833,11 +776,46 @@ def clear_screen():
         print("\033[2J\033[H", end="", flush=True)
 
 
+def _ui_width():
+    """Kompakte Breite fuer Smartphone-Terminals; niemals breiter als 48 Zeichen."""
+    try:
+        columns = shutil.get_terminal_size((44, 24)).columns
+    except OSError:
+        columns = 44
+    return max(34, min(48, columns - 2))
+
+
+def _ascii_box(title, subtitle=None):
+    """Schlichte ASCII-Kopfbox ohne Icons oder ANSI-Farben."""
+    width = _ui_width()
+    inner = width - 2
+    shown = _translate_ui(title)
+    _ORIGINAL_PRINT("+" + "-" * inner + "+")
+    _ORIGINAL_PRINT("|" + shown.center(inner) + "|")
+    if subtitle:
+        sub = _translate_ui(subtitle)
+        _ORIGINAL_PRINT("|" + sub.center(inner) + "|")
+    _ORIGINAL_PRINT("+" + "-" * inner + "+")
+
+
+def ui_section(title):
+    """Kleine Abschnittszeile fuer Informationsbloecke."""
+    shown = _translate_ui(title)
+    width = _ui_width()
+    suffix = max(1, width - len(shown) - 4)
+    _ORIGINAL_PRINT(f"-- {shown} " + "-" * suffix)
+
+
+def ui_field(label, value, label_width=13):
+    """Einheitlich ausgerichtete Label/Wert-Zeile."""
+    shown = _translate_ui(label)
+    _ORIGINAL_PRINT(f"{shown:<{label_width}} : {value}")
+
+
 def screen_title(title):
     clear_screen()
-    print(title)
-    print("=" * len(title))
-    print()
+    _ascii_box(title)
+    _ORIGINAL_PRINT()
 
 
 def pause():
@@ -1735,7 +1713,7 @@ def print_all_live(message):
     print("\nDetaildaten")
     print("===========\n")
     for entry in message.values:
-        print(f"{entry.code:<12} {format_detail_value(entry, entry.code)}")
+        print(f"{entry.code:<12} {format_value(entry)}")
 
 
 def print_stored_reading(reading, show_all=False, show_monthly=False):
@@ -1766,7 +1744,7 @@ def print_stored_reading(reading, show_all=False, show_monthly=False):
         print("\nDetaildaten")
         print("===========\n")
         for code, entry in values.items():
-            print(f"{code:<12} {format_detail_value(entry, code)}")
+            print(f"{code:<12} {format_stored_value(entry)}")
 
 
 def show_last(meter_id=None, show_all=False):
@@ -2686,8 +2664,113 @@ def choose_analysis_period(meter):
             return None
 
 
+def _naive_wall_time(value):
+    """Datetime fuer lokale Anzeigevergleiche ohne gespeicherte Daten zu aendern."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    try:
+        return datetime.fromisoformat(value).replace(tzinfo=None)
+    except (TypeError, ValueError):
+        return None
+
+
+def _analysis_source_meta(source, when, reading=None, source_reading=None):
+    meta = {
+        "read_at": when.isoformat(),
+        "_analysis_source": source,
+    }
+    if reading is not None:
+        try:
+            meta["_reading_id"] = reading["id"]
+            meta["read_at"] = reading["read_at"]
+        except (KeyError, IndexError, TypeError):
+            pass
+    if source_reading is not None:
+        try:
+            meta["_source_reading_id"] = source_reading["id"]
+        except (KeyError, IndexError, TypeError):
+            pass
+    return meta
+
+
+def combined_energy_points(meter_id, code, start=None, end=None):
+    """
+    Energie-Zaehlerstaende aus echten TermuMeter-Auslesungen und vorhandenen
+    Monats-/Stichtagswerten des Zaehlers kombinieren.
+
+    Es wird nichts interpoliert und nichts in der Datenbank veraendert.
+    Bei exakt gleichem Zeitstempel hat eine echte TermuMeter-Auslesung Vorrang.
+    """
+    combined = []
+
+    # Eigene Auslesungen ohne Zeitraumfilter holen; dadurch vermeiden wir
+    # aware/naive-Datetime-Vergleiche in alten Daten bei benutzerdefinierten
+    # Zeitraeumen. Gefiltert wird unten mit normalisierten Anzeigezeiten.
+    for when, value, reading in analysis_points(meter_id, code, None, None):
+        wall = _naive_wall_time(when)
+        if wall is None:
+            continue
+        combined.append((
+            wall,
+            value,
+            _analysis_source_meta("reading", wall, reading=reading),
+        ))
+
+    # Neueste gueltige Auslesung mit historischen Registern als Quelle.
+    source_reading, available = latest_historical_register_source(meter_id)
+    item = available.get(code)
+    if item is not None:
+        source_time = _naive_wall_time(
+            source_reading["read_at"] if source_reading is not None else None
+        )
+        for point in item["points"]:
+            wall = _naive_wall_time(point["date"])
+            if wall is None:
+                continue
+            # Defensiv keine historischen "Zukunftswerte" ueber die
+            # Quellauslesung hinaus verwenden.
+            if source_time is not None and wall > source_time:
+                continue
+            combined.append((
+                wall,
+                point["value"],
+                _analysis_source_meta(
+                    "monthly", wall, source_reading=source_reading
+                ),
+            ))
+
+    start_wall = _naive_wall_time(start)
+    end_wall = _naive_wall_time(end)
+
+    filtered = []
+    for point in combined:
+        when = point[0]
+        if start_wall is not None and when < start_wall:
+            continue
+        if end_wall is not None and when > end_wall:
+            continue
+        filtered.append(point)
+
+    # Bei identischem Zeitpunkt reale Auslesung bevorzugen.
+    unique = {}
+    for point in filtered:
+        key = point[0]
+        existing = unique.get(key)
+        if existing is None:
+            unique[key] = point
+        elif (
+            point[2].get("_analysis_source") == "reading"
+            and existing[2].get("_analysis_source") != "reading"
+        ):
+            unique[key] = point
+
+    return sorted(unique.values(), key=lambda item: item[0])
+
+
 def energy_result(meter_id, code, start, end):
-    points = analysis_points(meter_id, code, start, end)
+    points = combined_energy_points(meter_id, code, start, end)
     if len(points) < 2:
         return {"points": points, "delta": None}
 
@@ -2705,22 +2788,63 @@ def energy_result(meter_id, code, start, end):
     }
 
 
-def _print_aligned_rows(rows, gap=2):
-    """Print label/value rows aligned using the labels actually shown to the user."""
-    translated = [(_translate_ui(label), _translate_ui(str(value))) for label, value in rows]
-    width = max((len(label) for label, _ in translated), default=0)
-    for label, value in translated:
-        print(f"{label:<{width}}{' ' * gap}{value}")
-
-
 def print_period_header(meter, period):
     label, start, end = period
-    _print_aligned_rows([
-        ("Zaehler:", meter['name']),
-        ("Zaehl.-Nr.:", meter_display_number(meter)),
-        ("Zeitraumwahl:", label),
-    ])
-    print()
+    ui_field("Zaehler", meter['name'])
+    ui_field("Zaehl.-Nr.", meter_display_number(meter))
+    ui_field("Zeitraum", label)
+
+
+def _analysis_source_label(meta):
+    if meta.get("_analysis_source") == "monthly":
+        return "Monatsvorwert"
+    return "Auslesung"
+
+
+def _analysis_count_text(reading_count, monthly_count):
+    """Kompakte Datenbasis-Zeile mit sauberem Singular/Plural."""
+    if _ui_language() == "en":
+        reading_word = "reading" if reading_count == 1 else "readings"
+        monthly_word = (
+            "historical monthly value"
+            if monthly_count == 1
+            else "historical monthly values"
+        )
+    else:
+        reading_word = "Auslesung" if reading_count == 1 else "Auslesungen"
+        monthly_word = "Monatsvorwert" if monthly_count == 1 else "Monatsvorwerte"
+
+    parts = []
+    if reading_count:
+        parts.append(f"{reading_count} {reading_word}")
+    if monthly_count:
+        parts.append(f"{monthly_count} {monthly_word}")
+    return " + ".join(parts) if parts else "-"
+
+
+def _analysis_source_tag(meta):
+    if _ui_language() == "en":
+        return "Monthly history" if meta.get("_analysis_source") == "monthly" else "Reading"
+    return "Monatsvorwert" if meta.get("_analysis_source") == "monthly" else "Auslesung"
+
+
+def _analysis_point_time(when, meta):
+    return (
+        f"{when.strftime('%d.%m.%Y %H:%M:%S')} "
+        f"({_analysis_source_label(meta)})"
+    )
+
+
+def _analysis_source_counts(points):
+    readings = sum(
+        1 for _, _, meta in points
+        if meta.get("_analysis_source") == "reading"
+    )
+    monthly = sum(
+        1 for _, _, meta in points
+        if meta.get("_analysis_source") == "monthly"
+    )
+    return readings, monthly
 
 
 def print_analysis_summary(meter, period):
@@ -2732,44 +2856,54 @@ def print_analysis_summary(meter, period):
 
     points = result["points"]
     if len(points) < 2:
+        print()
+        ui_section("ERGEBNIS")
         print("Nicht genug auswertbare Werte im gewaehlten Zeitraum.")
-        print(f"Auswertbare Werte: {len(points)}")
+        print(f"Auswertbare Werte : {len(points)}")
         return
 
-    first_time, first_value, first_reading = result["first"]
-    last_time, last_value, last_reading = result["last"]
+    first_time, first_value, first_meta = result["first"]
+    last_time, last_value, last_meta = result["last"]
     delta = result["delta"]
     seconds = (last_time - first_time).total_seconds()
+    reading_count, monthly_count = _analysis_source_counts(points)
 
-    _print_aligned_rows([
-        ("Tatsaechlich von:", format_datetime(first_reading['read_at'])),
-        ("bis:", format_datetime(last_reading['read_at'])),
-        ("Auswertbare Werte:", len(points)),
-        ("Zeitraumlaenge:", format_duration(seconds)),
-    ])
     print()
-    _print_aligned_rows([
-        ("Zaehlerstand Start", format_kwh(first_value)),
-        ("Zaehlerstand Ende", format_kwh(last_value)),
-    ])
+    ui_section("AUSWERTUNGSZEITRAUM")
+    print(
+        f"Start : {first_time.strftime('%d.%m.%Y %H:%M')} "
+        f"[{_analysis_source_tag(first_meta)}]"
+    )
+    print(
+        f"Ende  : {last_time.strftime('%d.%m.%Y %H:%M')} "
+        f"[{_analysis_source_tag(last_meta)}]"
+    )
+    print(f"Dauer : {format_duration(seconds)}")
+    print(f"Werte : {len(points)}")
+
+    print()
+    ui_section("ERGEBNIS")
+    print(f"Startstand : {format_kwh(first_value)}")
+    print(f"Endstand   : {format_kwh(last_value)}")
 
     if delta is None:
-        print("\nVerbrauch kann nicht berechnet werden.")
+        print("Verbrauch  : -")
+        print()
+        print("Zaehlerstand ist gesunken.")
         print("Moeglicher Zaehlerwechsel oder Zaehler-Reset.")
         return
 
-    result_rows = [("Verbrauch", format_kwh(delta))]
+    print(f"Verbrauch  : {format_kwh(delta)}")
     if seconds > 0:
         days = Decimal(str(seconds)) / Decimal("86400")
-        result_rows.append(("Durchschnitt/Tag", format_kwh(delta / days)))
-    _print_aligned_rows(result_rows)
+        print(f"Ø pro Tag  : {format_kwh(delta / days)}")
 
-    if _ui_language() == "en":
-        print("\nNote: The displayed period is the period actually covered")
-        print("by readings within the selected period.")
-    else:
-        print("\nHinweis: Angezeigt wird der tatsaechlich durch Messwerte")
-        print("abgedeckte Zeitraum innerhalb der Zeitraumwahl.")
+    print()
+    ui_section("DATENBASIS")
+    print(_analysis_count_text(reading_count, monthly_count))
+    if monthly_count:
+        print("Monatsvorwerte sind gespeicherte Zaehlerstaende.")
+    print("Keine Schaetzwerte.")
 
 
 def print_analysis_tariffs(meter, period):
@@ -2783,6 +2917,8 @@ def print_analysis_tariffs(meter, period):
     d1 = t1.get("delta")
     d2 = t2.get("delta")
 
+    print()
+    ui_section("ERGEBNIS")
     print(f"Tarif 1 Verbrauch   {format_kwh(d1) if d1 is not None else '-'}")
     print(f"Tarif 2 Verbrauch   {format_kwh(d2) if d2 is not None else '-'}")
 
@@ -2808,23 +2944,45 @@ def print_analysis_feedin(meter, period):
 
     points = result["points"]
     if len(points) < 2:
+        print()
+        ui_section("ERGEBNIS")
         print("Nicht genug 2.8.0-Werte fuer eine Auswertung.")
-        print(f"Auswertbare Werte: {len(points)}")
+        print(f"Auswertbare Werte : {len(points)}")
         return
 
-    first_time, first_value, first_reading = result["first"]
-    last_time, last_value, last_reading = result["last"]
+    first_time, first_value, first_meta = result["first"]
+    last_time, last_value, last_meta = result["last"]
     delta = result["delta"]
+    reading_count, monthly_count = _analysis_source_counts(points)
 
-    print(f"Tatsaechlich von:   {format_datetime(first_reading['read_at'])}")
-    print(f"             bis:   {format_datetime(last_reading['read_at'])}")
-    print(f"Zaehlerstand Start  {format_kwh(first_value)}")
-    print(f"Zaehlerstand Ende   {format_kwh(last_value)}")
+    print()
+    ui_section("AUSWERTUNGSZEITRAUM")
+    print(
+        f"Start : {first_time.strftime('%d.%m.%Y %H:%M')} "
+        f"[{_analysis_source_tag(first_meta)}]"
+    )
+    print(
+        f"Ende  : {last_time.strftime('%d.%m.%Y %H:%M')} "
+        f"[{_analysis_source_tag(last_meta)}]"
+    )
+
+    print()
+    ui_section("ERGEBNIS")
+    print(f"Startstand  : {format_kwh(first_value)}")
+    print(f"Endstand    : {format_kwh(last_value)}")
     if delta is None:
-        print("Einspeisung         -")
-        print("\nZaehlerstand ist gesunken; keine Differenz berechnet.")
+        print("Einspeisung : -")
+        print()
+        print("Zaehlerstand ist gesunken; keine Differenz berechnet.")
     else:
-        print(f"Einspeisung         {format_kwh(delta)}")
+        print(f"Einspeisung : {format_kwh(delta)}")
+
+    print()
+    ui_section("DATENBASIS")
+    print(_analysis_count_text(reading_count, monthly_count))
+    if monthly_count:
+        print("Monatsvorwerte sind gespeicherte Zaehlerstaende.")
+    print("Keine Schaetzwerte.")
 
 
 def print_analysis_intervals(meter, period):
@@ -3012,7 +3170,7 @@ def menu_monthly_consumption(meter):
             print(f"{index:>3}  {label:<10} {format_kwh(row['total'], 3):>14}")
 
         print("\nMonatsnummer fuer Details")
-        print("0  Zurueck\n")
+        print("[0] Zurueck\n")
         try:
             choice = input("Auswahl: ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -3055,14 +3213,15 @@ def menu_analysis():
         print(f"Zaehler: {meter['name']}")
         print(f"Zaehl.-Nr.: {meter_display_number(meter)}")
         print(f"Zeitraum: {period[0]}\n")
-        print("1  Verbrauch")
-        print("2  Tarifaufteilung")
-        print("3  Einspeisung")
-        print("4  Messintervalle")
-        print("5  Monatsverbrauch")
-        print("6  Messreihen")
-        print("7  Zeitraum waehlen")
-        print("0  Zurueck\n")
+        ui_section("AUSWAHL")
+        print("[1] Verbrauch")
+        print("[2] Tarifaufteilung")
+        print("[3] Einspeisung")
+        print("[4] Messintervalle")
+        print("[5] Monatsverbrauch")
+        print("[6] Messreihen")
+        print("[7] Zeitraum waehlen")
+        print("[0] Zurueck\n")
 
         try:
             choice = input("Auswahl: ").strip()
@@ -3464,15 +3623,16 @@ def menu_export():
 
     while True:
         screen_title("DATEN EXPORTIEREN")
-        print(f"Zaehler: {meter['name']}")
-        print(f"Zaehl.-Nr.: {meter_display_number(meter)}")
-        print(f"Zeitraum: {period[0]}\n")
-        print("1  CSV - Uebersicht")
-        print("2  TXT - Uebersicht")
-        print("3  CSV - Alle Messwerte")
-        print("4  TXT - Alle Messwerte")
-        print("5  Zeitraum waehlen")
-        print("0  Zurueck\n")
+        ui_field("Zaehler", meter["name"])
+        ui_field("Zaehl.-Nr.", meter_display_number(meter))
+        ui_field("Zeitraum", period[0]); print()
+        ui_section("AUSWAHL")
+        print("[1] CSV - Uebersicht")
+        print("[2] TXT - Uebersicht")
+        print("[3] CSV - Alle Messwerte")
+        print("[4] TXT - Alle Messwerte")
+        print("[5] Zeitraum waehlen")
+        print("[0] Zurueck\n")
 
         try:
             choice = input("Auswahl: ").strip()
@@ -3604,9 +3764,10 @@ def menu_readings_delete():
     while True:
         screen_title("AUSLESUNGEN VERWALTEN")
         print(f"Zaehler: {meter['name']}\n")
-        print("1  Einzelne Auslesung loeschen")
-        print("2  Alle Auslesungen dieses Zaehlers loeschen")
-        print("0  Zurueck\n")
+        ui_section("AUSWAHL")
+        print("[1] Einzelne Auslesung loeschen")
+        print("[2] Alle Auslesungen dieses Zaehlers loeschen")
+        print("[0] Zurueck\n")
 
         try:
             choice = input("Auswahl: ").strip()
@@ -3661,13 +3822,14 @@ def delete_meter_interactive():
 def menu_meters():
     while True:
         screen_title("ZAEHLER VERWALTEN")
-        print("1  Bekannte Zaehler anzeigen")
-        print("2  Zaehler umbenennen")
-        print("3  Zaehlernummer / Identitaet")
-        print("4  Auslesungen verwalten")
-        print("5  Zaehler loeschen")
-        print("6  HA-Zaehler auswaehlen")
-        print("0  Zurueck\n")
+        ui_section("AUSWAHL")
+        print("[1] Bekannte Zaehler anzeigen")
+        print("[2] Zaehler umbenennen")
+        print("[3] Zaehlernummer / Identitaet")
+        print("[4] Auslesungen verwalten")
+        print("[5] Zaehler loeschen")
+        print("[6] HA-Zaehler auswaehlen")
+        print("[0] Zurueck\n")
         try:
             choice = input("Auswahl: ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -3732,16 +3894,16 @@ def menu_settings():
         mode = settings["protocol_mode"]
 
         screen_title("EINSTELLUNGEN")
-        print("Protokollerkennung")
-        print("-------------------")
+        ui_section("PROTOKOLL")
         print(f"Aktuell: {protocol_mode_label(mode)}\n")
-        print("1  Automatisch (SML -> IEC)")
-        print("2  Nur SML")
-        print("3  Nur IEC 62056-21")
-        print("4  Diagnose / Supportbericht")
-        print("5  Sprache")
-        print("6  Nach Updates suchen")
-        print("0  Zurueck\n")
+        ui_section("AUSWAHL")
+        print("[1] Automatisch (SML -> IEC)")
+        print("[2] Nur SML")
+        print("[3] Nur IEC 62056-21")
+        print("[4] Diagnose / Supportbericht")
+        print("[5] Sprache")
+        print("[6] Nach Updates suchen")
+        print("[0] Zurueck\n")
 
         try:
             choice = input("Auswahl: ").strip()
@@ -3786,22 +3948,329 @@ def menu_settings():
             return
 
 
+def choose_meter_for_overview():
+    meters = list_meters()
+    if not meters:
+        screen_title("ZAEHLERSTAENDE & VERBRAUCH")
+        print("Noch keine Zaehler gespeichert.")
+        pause()
+        return None
+
+    if len(meters) == 1:
+        return get_meter_by_id(meters[0]["id"])
+
+    while True:
+        screen_title("ZAEHLERSTAENDE & VERBRAUCH")
+        ui_section("ZAEHLER AUSWAEHLEN")
+        print()
+        for meter in meters:
+            marker = " [HA]" if meter["ha_enabled"] else ""
+            print(f"[{meter['id']}] {meter['name']}{marker}")
+            print(f"    Nr.    : {meter_display_number(meter)}")
+            if meter["last_reading"]:
+                print(f"    Letzte : {format_datetime(meter['last_reading'])}")
+            print()
+        print("[0] Zurueck")
+        print()
+        try:
+            value = input("Zaehler-ID: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return None
+        if value == "0":
+            return None
+        try:
+            meter = get_meter_by_id(int(value))
+        except ValueError:
+            meter = None
+        if meter is not None:
+            return meter
+
+
+def print_meter_overview(meter):
+    reading = get_last_reading(meter["id"])
+    ui_field("Zaehler", meter['name'])
+    ui_field("Zaehl.-Nr.", meter_display_number(meter))
+    if reading is None:
+        print("\nNoch keine auswertbare Auslesung vorhanden.")
+        return
+
+    values = decode_values(reading)
+    current = get_stored_entry(values, "1.8.0")
+    export = get_stored_entry(values, "2.8.0")
+    print()
+    ui_section("LETZTER ZAEHLERSTAND")
+    ui_field("1.8.0", format_stored_value(current))
+    if export is not None:
+        ui_field("2.8.0", format_stored_value(export))
+    ui_field("Ausgelesen", format_datetime(reading['read_at']))
+
+    points = analysis_points(meter["id"])
+    if len(points) >= 2:
+        previous = points[-2]
+        last = points[-1]
+        delta = last[1] - previous[1]
+        if delta >= 0:
+            ui_field("Vergleich mit", previous[0].strftime('%d.%m.%Y %H:%M'))
+            ui_field("Verbrauch", format_kwh(delta, 3))
+
+
+def menu_consumption_compact(meter):
+    period = ("Gesamter Verlauf", None, latest_analysis_time(meter["id"]))
+    while True:
+        print_analysis_summary(meter, period)
+        print()
+        ui_section("AUSWAHL")
+        print("[1] Zeitraum aendern")
+        print("[2] Tarifaufteilung")
+        print("[3] Einspeisung")
+        print("[4] Messintervalle")
+        print("[0] Zurueck")
+        print()
+        try:
+            choice = input("Auswahl: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if choice == "1":
+            selected = choose_analysis_period(meter)
+            if selected is not None:
+                period = selected
+        elif choice == "2":
+            print_analysis_tariffs(meter, period); pause()
+        elif choice == "3":
+            print_analysis_feedin(meter, period); pause()
+        elif choice == "4":
+            print_analysis_intervals(meter, period); pause()
+        elif choice == "0":
+            return
+
+
+MONTHLY_REGISTER_CANDIDATES = (
+    ("1.8.0", "Gesamtbezug"),
+    ("1.8.1", "Bezug Tarif 1"),
+    ("1.8.2", "Bezug Tarif 2"),
+    ("1.8.3", "Bezug Tarif 3"),
+    ("1.8.4", "Bezug Tarif 4"),
+    ("2.8.0", "Gesamteinspeisung"),
+    ("2.8.1", "Einspeisung Tarif 1"),
+    ("2.8.2", "Einspeisung Tarif 2"),
+    ("2.8.3", "Einspeisung Tarif 3"),
+    ("2.8.4", "Einspeisung Tarif 4"),
+)
+
+
+def historical_register_points(values, code):
+    """Historische Stichtagswerte fuer ein einzelnes Energie-Zaehlwerk."""
+    points = []
+    for number in range(1, 100):
+        suffix = f"{number:02d}"
+        date_entry = _stored_historical_entry(values, "0.1.2", suffix)
+        when = _historical_datetime(date_entry.get("raw") if date_entry else None)
+        value = _historical_energy_kwh(
+            _stored_historical_entry(values, code, suffix)
+        )
+        if when is None or value is None:
+            continue
+        points.append({"date": when, "value": value})
+
+    unique = {}
+    duplicates = set()
+    for point in points:
+        key = point["date"]
+        if key in unique:
+            duplicates.add(key)
+        else:
+            unique[key] = point
+    for key in duplicates:
+        unique.pop(key, None)
+
+    return sorted(unique.values(), key=lambda point: point["date"])
+
+
+def latest_historical_register_source(meter_id):
+    """Neueste gueltige Auslesung mit historischen Energie-Zaehlwerken."""
+    readings = get_history(meter_id=meter_id, limit=1000000)
+    for reading in readings:
+        if not reading["bcc_valid"]:
+            continue
+        values = decode_values(reading)
+        available = {}
+        for code, label in MONTHLY_REGISTER_CANDIDATES:
+            points = historical_register_points(values, code)
+            if points:
+                available[code] = {"label": label, "points": points}
+        if available:
+            return reading, available
+    return None, {}
+
+
+def historical_register_deltas(points):
+    """Differenzen zwischen aufeinanderfolgenden historischen Stichtagen."""
+    result = {}
+    for older, newer in zip(points, points[1:]):
+        delta = newer["value"] - older["value"]
+        if delta >= 0:
+            result[older["date"]] = delta
+    return result
+
+
+def _monthly_delta_label(code):
+    return "Einspeisung" if code.startswith("2.8.") else "Verbrauch"
+
+
+def _print_monthly_register_table(code, label, points):
+    deltas = historical_register_deltas(points)
+    delta_label = _monthly_delta_label(code)
+
+    print(f"\n{code}  {label}")
+    print("-" * min(44, max(18, len(code) + len(label) + 2)))
+    print(f"{'Stichtag':<12} {'Zaehlerstand':>16} {delta_label:>14}")
+    print("-" * 44)
+
+    for point in reversed(points):
+        delta = deltas.get(point["date"])
+        delta_text = format_kwh(delta, 3) if delta is not None else "-"
+        print(
+            f"{point['date'].strftime('%d.%m.%Y'):<12} "
+            f"{format_kwh(point['value'], 3):>16} {delta_text:>14}"
+        )
+
+
+def menu_monthly_values_compact(meter):
+    reading, available = latest_historical_register_source(meter["id"])
+    if reading is None or not available:
+        screen_title("MONATSVORWERTE")
+        print(f"Zaehler: {meter['name']}")
+        print(f"Zaehl.-Nr.: {meter_display_number(meter)}")
+        print("\nKeine historischen Energie-Zaehlwerke gefunden.")
+        pause()
+        return
+
+    codes = [code for code, _ in MONTHLY_REGISTER_CANDIDATES if code in available]
+    selected = {"1.8.0"} if "1.8.0" in available else {codes[0]}
+
+    while True:
+        screen_title("MONATSVORWERTE")
+        print(f"Zaehler: {meter['name']}")
+        print(f"Zaehl.-Nr.: {meter_display_number(meter)}")
+        print(
+            f"Quelle: Messung #{reading['id']} · "
+            f"{format_datetime(reading['read_at'])}\n"
+        )
+        ui_section("ZAEHLWERKE AUSWAEHLEN")
+        for index, code in enumerate(codes, start=1):
+            marker = "x" if code in selected else " "
+            print(f"[{index}] [{marker}] {code:<5} {available[code]['label']}")
+
+        print()
+        print("[a] Alle auswaehlen")
+        print("[v] Werte anzeigen")
+        print("[0] Zurueck")
+        print()
+
+        try:
+            choice = input("Auswahl: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return
+
+        if choice == "0":
+            return
+        if choice == "a":
+            if len(selected) == len(codes):
+                selected.clear()
+            else:
+                selected = set(codes)
+            continue
+        if choice == "v":
+            if not selected:
+                continue
+            screen_title("MONATSVORWERTE")
+            print(f"Zaehler: {meter['name']}")
+            print(f"Zaehl.-Nr.: {meter_display_number(meter)}")
+            print(
+                f"Quelle: Messung #{reading['id']} · "
+                f"{format_datetime(reading['read_at'])}"
+            )
+            for code in codes:
+                if code in selected:
+                    item = available[code]
+                    _print_monthly_register_table(code, item["label"], item["points"])
+            pause()
+            continue
+
+        try:
+            index = int(choice) - 1
+        except ValueError:
+            continue
+        if 0 <= index < len(codes):
+            code = codes[index]
+            if code in selected:
+                selected.remove(code)
+            else:
+                selected.add(code)
+
+
+def menu_meter_readings_and_consumption():
+    while True:
+        meter = choose_meter_for_overview()
+        if meter is None:
+            return
+        while True:
+            screen_title("ZAEHLERSTAENDE & VERBRAUCH")
+            print_meter_overview(meter)
+            print()
+            ui_section("AUSWAHL")
+            print("[1] Auslesungen")
+            print("[2] Verbrauch")
+            print("[3] Monatsvorwerte")
+            print("[4] Technische Details")
+            print()
+            print("[9] Anderen Zaehler waehlen")
+            print("[0] Zurueck")
+            print()
+            try:
+                choice = input("Auswahl: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                return
+            if choice == "1":
+                while True:
+                    reading = choose_reading_for_history(meter)
+                    if reading is None:
+                        break
+                    menu_history_reading(reading)
+            elif choice == "2":
+                menu_consumption_compact(meter)
+            elif choice == "3":
+                menu_monthly_values_compact(meter)
+            elif choice == "4":
+                reading = get_last_reading(meter["id"])
+                if reading is None:
+                    screen_title("TECHNISCHE DETAILS")
+                    print("Keine gespeicherte Auslesung gefunden.")
+                    pause()
+                else:
+                    screen_title("TECHNISCHE DETAILS")
+                    print_stored_reading(reading, show_all=True)
+                    pause()
+            elif choice == "9":
+                break
+            elif choice == "0":
+                return
+
+
 def main_menu():
     while True:
         clear_screen()
-        print("======================================")
-        print("              TERMUMETER")
-        print(f"           {APP_VERSION}")
-        print("======================================\n")
-        print("1  Neue Zaehlerauslesung")
-        print("2  Letzte Auslesung")
-        print("3  Auslesungsverlauf")
-        print("4  Auswertung")
-        print("5  Daten exportieren")
-        print("6  Zaehler verwalten")
-        print("7  Home Assistant")
-        print("8  Einstellungen")
-        print("\n0  Beenden\n")
+        _ascii_box("TERMUMETER", APP_VERSION)
+        print()
+        print("[1] Auslesen")
+        print("[2] Zaehlerstaende & Verbrauch")
+        print("[3] Zaehler verwalten")
+        print("[4] Daten exportieren")
+        print("[5] Home Assistant")
+        print("[6] Einstellungen")
+        print()
+        print("[0] Beenden")
+        print()
 
         try:
             choice = input("Auswahl: ").strip()
@@ -3813,22 +4282,18 @@ def main_menu():
             if choice == "1":
                 menu_new_reading()
             elif choice == "2":
-                menu_last_reading()
+                menu_meter_readings_and_consumption()
             elif choice == "3":
-                menu_history()
-            elif choice == "4":
-                menu_analysis()
-            elif choice == "5":
-                menu_export()
-            elif choice == "6":
                 menu_meters()
-            elif choice == "7":
+            elif choice == "4":
+                menu_export()
+            elif choice == "5":
                 screen_title("HOME ASSISTANT")
                 print("Synchronisation wird spaeter eingerichtet.")
                 print("Den HA-Zaehler kannst du bereits unter")
                 print('"Zaehler verwalten" auswaehlen.')
                 pause()
-            elif choice == "8":
+            elif choice == "6":
                 menu_settings()
             elif choice == "0":
                 clear_screen()
@@ -3837,6 +4302,7 @@ def main_menu():
         except (RuntimeError, ValueError) as exc:
             print(f"\nFehler: {exc}", file=sys.stderr)
             pause()
+
 
 def print_file_test(message, filename, show_all=False):
     """
